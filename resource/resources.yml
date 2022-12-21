@@ -1,0 +1,93 @@
+Parameters:
+  ProjectName:
+    Type: String
+    Description: The name of the project being built.  This name will be used on a number of resources.
+    Default: demo-serverless-app 
+  DBUsername:
+    Default: admin
+    Description: Username for database access
+    Type: String
+    MinLength: "1"
+    MaxLength: "16"
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  BuildStage:
+    Description: build stage
+    Type: String
+    Default: dev
+  DBName:
+    Description: build stage
+    Type: String
+    Default: demo_serverless_app
+Resources:
+  #RDS-Aurora-Serverless
+  MyRDSInstanceRotationSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Join ["", [!Ref ProjectName, !Ref BuildStage]]
+      Description: This is my rds instance secret
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DBUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 16
+        ExcludeCharacters: "\"@/\\"
+      Tags:
+        - Key: Service
+          Value: !Ref ProjectName
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      Tags:
+        - Key: Service
+          Value: !Ref ProjectName
+      GroupDescription: Enable HTTP access via port 80 and SSH access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: "3306"
+          ToPort: "3306"
+          CidrIp: 0.0.0.0/0
+  RDSCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Tags:
+        - Key: Service
+          Value: !Ref ProjectName
+      VpcSecurityGroupIds:
+        - Fn::GetAtt: RDSSecurityGroup.GroupId
+      EnableHttpEndpoint: true
+      MasterUsername:
+        Fn::Sub: "{{resolve:secretsmanager:${MyRDSInstanceRotationSecret}::username}}"
+      MasterUserPassword:
+        Fn::Sub: "{{resolve:secretsmanager:${MyRDSInstanceRotationSecret}::password}}"
+      DatabaseName: !Join ["", [!Ref DBName, !Ref BuildStage]]
+      Engine: aurora
+      EngineMode: serverless
+      ScalingConfiguration:
+        AutoPause: true
+        MaxCapacity: 16
+        MinCapacity: 1
+        SecondsUntilAutoPause: 3000
+      # DBSubnetGroupName:
+      #   Ref: DBSubnetGroup
+  RDSClusterEndpointSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: !Sub /${ProjectName}/${BuildStage}/rds
+      Type: String
+      Value:
+        Fn::GetAtt: RDSCluster.Endpoint.Address
+      Description: RDSClusterEndpointSSM
+  RDSClusterARNSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: !Sub /${ProjectName}/${BuildStage}/rdsarn
+      Type: String
+      Value: !Sub "arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${RDSCluster}"
+      Description: RDSClusterEndpointSSM
+  RDSClusterSecretManagerArnSSM:
+    Type: "AWS::SSM::Parameter"
+    Properties:
+      Name: !Sub /${ProjectName}/${BuildStage}/rdssecret
+      Type: String
+      Value: !Ref MyRDSInstanceRotationSecret
+      Description: RDSClusterSecretManagerArnSSM

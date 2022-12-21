@@ -1,0 +1,97 @@
+service: demo-serverless-app
+app: demo-serverless-app
+variablesResolutionMode: 20210326
+provider:
+  name: aws
+  httpApi:
+    cors: true
+  runtime: nodejs14.x
+  iam:
+    role: DefaultRole
+  stage: ${opt:stage, "dev"}
+  region: us-east-1
+  versionFunctions: false
+  stackName: demo-serverless-app-serverless-backend
+  timeout: 10
+  environment:
+    key: BfxKLQV2UYtS7uZUbPJR6Fd0EE4uUW+6c7ZC61acXnH17C/ZVTqANvwFwwPzYuVJ1H7PKw59BscZerygEmxxpBUrZOEWHucqBXz2lQ/tkRalys5ZSPtUlU3Zt6ddQRcRre9hfsSgTALOCkQfw7sEhx5RMlFrhdVARIGrLORFLWIs9vgRJReAKguFLURNTZ9CdS/X96xzExSdQ/nDY3svXr1QD0mLVX2C4LZOLA==
+    RDS_arn: ${ssm:/${self:app}/${opt:stage, "dev"}/rdsarn}
+    RDS_secret: ${ssm:/${self:app}/${opt:stage, "dev"}/rdssecret}
+    RDS_dbname: demo_serverless_app${opt:stage, "dev"}
+  deploymentBucket:
+    name: ${aws:accountId}-deploys
+    maxPreviousDeploymentArtifacts: 5
+    blockPublicAccess: true
+  deploymentPrefix: ${self:service}-${opt:stage, "dev"}
+resources:
+  Resources:
+    DefaultRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: >-
+          ${self:app}-${opt:stage, "dev"}-${opt:ver,
+          "1"}-DefaultLambdaExcutionRole
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AmazonRDSDataFullAccess
+        Policies:
+          - PolicyName: myPolicyName
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - secretsmanager:*
+                    - logs:*
+                  Resource: '*'
+    ApigatewayParms:
+      Type: "AWS::SSM::Parameter"
+      Properties:
+        Name: '/${self:app}/api_gateway_id'
+        Type: String
+        Value:
+          Ref: HttpApi
+        Description: ApiGatewayId
+  Outputs:
+    Version:
+      Value: ${opt:ver, "1"}
+    Stage:
+      Value: ${opt:stage, "dev"}
+plugins:
+  - serverless-deployment-bucket
+  - serverless-plugin-split-stacks
+custom:
+  splitStacks:
+    nestedStackCount: 5
+    perFunction: false
+    perType: false
+    perGroupFunction: true
+functions:
+  login_get:
+    name: login_get
+    handler: src/lambda/login/get.handler
+    events:
+      - httpApi:
+          path: /login
+          method: get
+  user_get:
+    name: user_get
+    handler: src/lambda/user/get.handler
+    events:
+      - httpApi:
+          path: /user
+          method: get
+  user_delete:
+    name: user_delete
+    handler: src/lambda/user/delete.handler
+    events:
+      - httpApi:
+          path: /user
+          method: delete

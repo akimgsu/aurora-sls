@@ -1,0 +1,178 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "2NestedStack nested stack",
+  "Parameters": {
+    "DefaultRoleArnParameter": {
+      "Type": "String"
+    },
+    "HttpApiParameter": {
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "UserUnderscoregetLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/user_get"
+      },
+      "DependsOn": []
+    },
+    "UserUnderscoredeleteLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/user_delete"
+      },
+      "DependsOn": []
+    },
+    "UserUnderscoregetLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "312939059436-deploys",
+          "S3Key": "demo-serverless-app-dev/demo-serverless-app/dev/1671656372057-2022-12-21T20:59:32.057Z/demo-serverless-app.zip"
+        },
+        "Handler": "src/lambda/user/get.handler",
+        "Runtime": "nodejs14.x",
+        "FunctionName": "user_get",
+        "MemorySize": 1024,
+        "Timeout": 10,
+        "Environment": {
+          "Variables": {
+            "key": "BfxKLQV2UYtS7uZUbPJR6Fd0EE4uUW+6c7ZC61acXnH17C/ZVTqANvwFwwPzYuVJ1H7PKw59BscZerygEmxxpBUrZOEWHucqBXz2lQ/tkRalys5ZSPtUlU3Zt6ddQRcRre9hfsSgTALOCkQfw7sEhx5RMlFrhdVARIGrLORFLWIs9vgRJReAKguFLURNTZ9CdS/X96xzExSdQ/nDY3svXr1QD0mLVX2C4LZOLA==",
+            "RDS_arn": "arn:aws:rds:us-east-1:312939059436:cluster:demo-aurora-sls-rdscluster-mz5royleejjd",
+            "RDS_secret": "arn:aws:secretsmanager:us-east-1:312939059436:secret:demo-serverless-appdev-g8CFlj",
+            "RDS_dbname": "demo_serverless_appdev"
+          }
+        },
+        "Role": {
+          "Ref": "DefaultRoleArnParameter"
+        }
+      },
+      "DependsOn": [
+        "UserUnderscoregetLogGroup"
+      ]
+    },
+    "UserUnderscoredeleteLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "312939059436-deploys",
+          "S3Key": "demo-serverless-app-dev/demo-serverless-app/dev/1671656372057-2022-12-21T20:59:32.057Z/demo-serverless-app.zip"
+        },
+        "Handler": "src/lambda/user/delete.handler",
+        "Runtime": "nodejs14.x",
+        "FunctionName": "user_delete",
+        "MemorySize": 1024,
+        "Timeout": 10,
+        "Environment": {
+          "Variables": {
+            "key": "BfxKLQV2UYtS7uZUbPJR6Fd0EE4uUW+6c7ZC61acXnH17C/ZVTqANvwFwwPzYuVJ1H7PKw59BscZerygEmxxpBUrZOEWHucqBXz2lQ/tkRalys5ZSPtUlU3Zt6ddQRcRre9hfsSgTALOCkQfw7sEhx5RMlFrhdVARIGrLORFLWIs9vgRJReAKguFLURNTZ9CdS/X96xzExSdQ/nDY3svXr1QD0mLVX2C4LZOLA==",
+            "RDS_arn": "arn:aws:rds:us-east-1:312939059436:cluster:demo-aurora-sls-rdscluster-mz5royleejjd",
+            "RDS_secret": "arn:aws:secretsmanager:us-east-1:312939059436:secret:demo-serverless-appdev-g8CFlj",
+            "RDS_dbname": "demo_serverless_appdev"
+          }
+        },
+        "Role": {
+          "Ref": "DefaultRoleArnParameter"
+        }
+      },
+      "DependsOn": [
+        "UserUnderscoredeleteLogGroup"
+      ]
+    },
+    "UserUnderscoregetLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "UserUnderscoregetLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "HttpApiParameter"
+              },
+              "/*"
+            ]
+          ]
+        }
+      },
+      "DependsOn": []
+    },
+    "UserUnderscoredeleteLambdaPermissionHttpApi": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "UserUnderscoredeleteLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "HttpApiParameter"
+              },
+              "/*"
+            ]
+          ]
+        }
+      },
+      "DependsOn": []
+    }
+  },
+  "Outputs": {
+    "UserUnderscoregetLambdaFunctionArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "UserUnderscoregetLambdaFunction",
+          "Arn"
+        ]
+      }
+    },
+    "UserUnderscoredeleteLambdaFunctionArn": {
+      "Value": {
+        "Fn::GetAtt": [
+          "UserUnderscoredeleteLambdaFunction",
+          "Arn"
+        ]
+      }
+    }
+  }
+}

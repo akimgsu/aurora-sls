@@ -1,0 +1,340 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "HttpApi": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": "dev-demo-serverless-app",
+        "ProtocolType": "HTTP",
+        "CorsConfiguration": {
+          "AllowHeaders": [
+            "Content-Type",
+            "X-Amz-Date",
+            "Authorization",
+            "X-Api-Key",
+            "X-Amz-Security-Token",
+            "X-Amz-User-Agent",
+            "X-Amzn-Trace-Id"
+          ],
+          "AllowMethods": [
+            "OPTIONS",
+            "GET",
+            "DELETE"
+          ],
+          "AllowOrigins": [
+            "*"
+          ]
+        }
+      },
+      "DependsOn": []
+    },
+    "HttpApiStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "StageName": "$default",
+        "AutoDeploy": true,
+        "DefaultRouteSettings": {
+          "DetailedMetricsEnabled": false
+        }
+      },
+      "DependsOn": []
+    },
+    "HttpApiIntegrationLoginUnderscoreget": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "3NestedStack",
+            "Outputs.LoginUnderscoregetLambdaFunctionArn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      "DependsOn": [
+        "3NestedStack"
+      ]
+    },
+    "HttpApiRouteGetLogin": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /login",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationLoginUnderscoreget"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "HttpApiIntegrationLoginUnderscoreget"
+      ]
+    },
+    "HttpApiIntegrationUserUnderscoreget": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "2NestedStack",
+            "Outputs.UserUnderscoregetLambdaFunctionArn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      "DependsOn": [
+        "2NestedStack"
+      ]
+    },
+    "HttpApiRouteGetUser": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "GET /user",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationUserUnderscoreget"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "HttpApiIntegrationUserUnderscoreget"
+      ]
+    },
+    "HttpApiIntegrationUserUnderscoredelete": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "IntegrationType": "AWS_PROXY",
+        "IntegrationUri": {
+          "Fn::GetAtt": [
+            "2NestedStack",
+            "Outputs.UserUnderscoredeleteLambdaFunctionArn"
+          ]
+        },
+        "PayloadFormatVersion": "2.0",
+        "TimeoutInMillis": 30000
+      },
+      "DependsOn": [
+        "2NestedStack"
+      ]
+    },
+    "HttpApiRouteDeleteUser": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "HttpApi"
+        },
+        "RouteKey": "DELETE /user",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "HttpApiIntegrationUserUnderscoredelete"
+              }
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "HttpApiIntegrationUserUnderscoredelete"
+      ]
+    },
+    "DefaultRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "demo-serverless-app-dev-1-DefaultLambdaExcutionRole",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AmazonRDSDataFullAccess"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "myPolicyName",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:*",
+                    "logs:*"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "DependsOn": []
+    },
+    "ApigatewayParms": {
+      "Type": "AWS::SSM::Parameter",
+      "Properties": {
+        "Name": "/demo-serverless-app/api_gateway_id",
+        "Type": "String",
+        "Value": {
+          "Ref": "HttpApi"
+        },
+        "Description": "ApiGatewayId"
+      },
+      "DependsOn": []
+    },
+    "3NestedStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "Parameters": {
+          "DefaultRoleArnParameter": {
+            "Fn::GetAtt": [
+              "DefaultRole",
+              "Arn"
+            ]
+          },
+          "HttpApiParameter": {
+            "Ref": "HttpApi"
+          }
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "/",
+            [
+              "https://s3.us-east-1.amazonaws.com",
+              "312939059436-deploys",
+              "demo-serverless-app-dev/demo-serverless-app/dev/1671656372057-2022-12-21T20:59:32.057Z",
+              "cloudformation-template-3-nested-stack.json"
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "DefaultRole",
+        "HttpApi"
+      ]
+    },
+    "2NestedStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "Parameters": {
+          "DefaultRoleArnParameter": {
+            "Fn::GetAtt": [
+              "DefaultRole",
+              "Arn"
+            ]
+          },
+          "HttpApiParameter": {
+            "Ref": "HttpApi"
+          }
+        },
+        "TemplateURL": {
+          "Fn::Join": [
+            "/",
+            [
+              "https://s3.us-east-1.amazonaws.com",
+              "312939059436-deploys",
+              "demo-serverless-app-dev/demo-serverless-app/dev/1671656372057-2022-12-21T20:59:32.057Z",
+              "cloudformation-template-2-nested-stack.json"
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "DefaultRole",
+        "HttpApi"
+      ]
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": "312939059436-deploys",
+      "Export": {
+        "Name": "sls-demo-serverless-app-dev-ServerlessDeploymentBucketName"
+      }
+    },
+    "HttpApiId": {
+      "Description": "Id of the HTTP API",
+      "Value": {
+        "Ref": "HttpApi"
+      },
+      "Export": {
+        "Name": "sls-demo-serverless-app-dev-HttpApiId"
+      }
+    },
+    "HttpApiUrl": {
+      "Description": "URL of the HTTP API",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "HttpApi"
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region"
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix"
+            }
+          ]
+        ]
+      },
+      "Export": {
+        "Name": "sls-demo-serverless-app-dev-HttpApiUrl"
+      }
+    },
+    "Version": {
+      "Value": "1"
+    },
+    "Stage": {
+      "Value": "dev"
+    }
+  }
+}
